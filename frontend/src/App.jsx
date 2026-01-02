@@ -166,7 +166,7 @@ function App() {
       
 
       <footer className="app-footer">
-          <p>© 2026 | Created with ❤️ by <strong>[Rajuri Vignan]</strong></p>
+          <p>© 2026 | Created with ❤️ by <strong>Rajuri Vignan</strong></p>
           <p className="footer-tech">React • FastAPI • PostgreSQL</p>
         </footer>
       </main>

@@ -1,19 +1,33 @@
-const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/students/";
-
 import { useState, useEffect } from 'react'
 import axios from 'axios'
 import './App.css'
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
-
+// --- GLOBAL CONFIGURATION ---
+// This uses your Vercel Env Var if present, otherwise local
+// const BASE_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+//const API_URL = BASE_URL.endsWith('/') ? `${BASE_URL}students/` : `${BASE_URL}/students/`;
+const API_URL = "https://student-management-system-backend.onrender.com/students/";
 function App() {
   const [students, setStudents] = useState([])
   const [form, setForm] = useState({ name: '', age: '', major: '', email: '' })
   const [editingId, setEditingId] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
 
-  const API_URL = "http://127.0.0.1:8000/students/"
+  useEffect(() => { 
+    console.log("Current API Endpoint:", API_URL);
+    fetchStudents(); 
+  }, [])
+
+  const fetchStudents = async () => {
+    try {
+      const response = await axios.get(API_URL)
+      setStudents(response.data)
+    } catch (error) { 
+      console.error("API Error:", error);
+    }
+  }
 
   const exportPDF = () => {
     const doc = new jsPDF();
@@ -37,30 +51,23 @@ function App() {
     doc.save(`Student_Report_${new Date().getTime()}.pdf`);
   };
 
-  useEffect(() => { fetchStudents() }, [])
-
-  const fetchStudents = async () => {
-    try {
-      const response = await axios.get(API_URL)
-      setStudents(response.data)
-    } catch (error) { console.error("API Error:", error) }
-  }
-
   const handleSubmit = async (e) => {
     e.preventDefault()
     try {
-      if (editingId) await axios.put(`${API_URL}${editingId}`, form)
-      else await axios.post(API_URL, form)
-      
+      if (editingId) {
+        await axios.put(`${API_URL}${editingId}`, form)
+      } else {
+        await axios.post(API_URL, form)
+      }
       setForm({ name: '', age: '', major: '', email: '' })
       setEditingId(null)
       fetchStudents()
     } catch (err) { 
-      alert("Action failed. Ensure backend is running.") 
+      alert("Action failed. Check console for details.");
+      console.error(err);
     }
   }
 
-  // --- SEARCH LOGIC (Inside the function) ---
   const filteredStudents = (students || []).filter(s => {
     const name = s.name?.toLowerCase() || "";
     const major = s.major?.toLowerCase() || "";
@@ -68,16 +75,11 @@ function App() {
     return name.includes(query) || major.includes(query);
   });
 
-  // Debugging log (now inside the component)
-  console.log(`Query: "${searchQuery}" | Results: ${filteredStudents.length}`);
-
   return (
     <div className="app-shell">
       <aside className="sidebar">
         <div className="logo">🎓 UniAdmin</div>
-        <nav>
-          <div className="nav-item active">Students</div>
-        </nav>
+        <nav><div className="nav-item active">Students</div></nav>
       </aside>
 
       <main className="main-content">
@@ -86,7 +88,6 @@ function App() {
             <h1>Student Management</h1>
             <p className="subtitle">Manage enrollment and export records</p>
           </div>
-          
           <div className="header-actions">
             <div className="search-box">
               <input 
@@ -106,25 +107,20 @@ function App() {
             </h3>
             <form onSubmit={handleSubmit} className="modern-form">
               <input name="name" placeholder="Full Name" value={form.name} onChange={(e) => setForm({...form, name: e.target.value})} required />
-              
               <div className="row">
                 <input name="age" type="number" placeholder="Age" value={form.age} onChange={(e) => setForm({...form, age: e.target.value})} required />
                 <input name="major" placeholder="Major" value={form.major} onChange={(e) => setForm({...form, major: e.target.value})} required />
               </div>
-              
               <input name="email" type="email" placeholder="Email Address" value={form.email} onChange={(e) => setForm({...form, email: e.target.value})} required />
-              
               <div className="form-actions" style={{ marginTop: '1rem' }}>
                 <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
                   {editingId ? "Save Changes" : "Create Record"}
                 </button>
-
                 {editingId && (
                   <button type="button" onClick={() => {setEditingId(null); setForm({name:'',age:'',major:'',email:''})}} className="btn btn-ghost" style={{ width: '100%', marginTop: '0.5rem' }}>
                     Cancel
                   </button>
                 )}
-
                 <button type="button" onClick={exportPDF} className="btn btn-export-full" style={{ marginTop: '1rem' }}>
                   <span>📥</span> Download Student Report (PDF)
                 </button>
@@ -136,7 +132,6 @@ function App() {
             <div className="list-header">
               <h3>Active Records ({filteredStudents.length})</h3>
             </div>
-            
             <div className="student-cards">
               {filteredStudents.length > 0 ? (
                 filteredStudents.map(student => (
@@ -149,7 +144,12 @@ function App() {
                     </div>
                     <div className="item-actions">
                       <button onClick={() => {setEditingId(student.id); setForm(student)}} className="icon-btn edit">✎</button>
-                      <button onClick={async () => {if(window.confirm("Delete?")) {await axios.delete(`${API_URL}${student.id}`); fetchStudents()}}} className="icon-btn delete">🗑</button>
+                      <button onClick={async () => {
+                        if(window.confirm("Delete student?")) {
+                          await axios.delete(`${API_URL}${student.id}`);
+                          fetchStudents();
+                        }
+                      }} className="icon-btn delete">🗑</button>
                     </div>
                   </div>
                 ))
@@ -157,12 +157,7 @@ function App() {
                 <div className="no-results glass-card">
                   <div className="no-results-icon">🔍</div>
                   <h4>No students found</h4>
-                  <p>Try searching for a different name or major.</p>
-                  {searchQuery && (
-                    <button onClick={() => setSearchQuery('')} className="btn-link">
-                      Clear Search
-                    </button>
-                  )}
+                  {searchQuery && <button onClick={() => setSearchQuery('')} className="btn-link">Clear Search</button>}
                 </div>
               )}
             </div>

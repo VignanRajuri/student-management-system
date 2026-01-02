@@ -28,19 +28,22 @@ app = FastAPI()
 
 # --- 3. CORS SETUP (Corrected) ---
 # This allows your specific Vercel URL and local testing
+# --- 3. CORS SETUP ---
 origins = [
     "http://localhost:5173",
-    "https://student-management-system-git-main-vignanrajuris-projects.vercel.app", # Removed the trailing slash
-    "https://student-management-system-vignanrajuris-projects.vercel.app" # Add your main production URL too
+    "https://student-management-system-git-main-vignanrajuris-projects.vercel.app",
+    "https://student-management-system-vignanrajuris-projects.vercel.app",
 ]
 
+# TEMPORARY TEST ONLY (NOT RECOMMENDED FOR LONG TERM)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"], # This allows EVERY website to talk to your backend
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 @app.on_event("startup")
 def on_startup():

@@ -2,18 +2,19 @@ from fastapi import FastAPI, HTTPException, Depends
 from sqlmodel import SQLModel, Field, Session, create_engine, select
 from typing import List, Optional
 from fastapi.middleware.cors import CORSMiddleware
+import os
 
-# --- Database Setup ---
-class Student(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
-    name: str
-    age: int
-    major: str
-    email: str
+# --- 1. CONFIGURATION & DATABASE SETUP ---
+# Fetch DATABASE_URL from environment variables (Supabase/Render)
+# Fallback to local SQLite ONLY for local development
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///database.db")
 
-sqlite_file_name = "database.db"
-sqlite_url = f"sqlite:///{sqlite_file_name}"
-engine = create_engine(sqlite_url)
+# PostgreSQL fix: Render/Supabase use 'postgresql://', but SQLAlchemy 
+# sometimes requires 'postgresql+psycopg2://'
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+engine = create_engine(DATABASE_URL)
 
 def create_db_and_tables():
     SQLModel.metadata.create_all(engine)
@@ -22,13 +23,19 @@ def get_session():
     with Session(engine) as session:
         yield session
 
-# --- App Setup ---
+# --- 2. APP SETUP ---
 app = FastAPI()
 
-# Enable CORS (allows Frontend to talk to Backend)
+# --- 3. CORS SETUP (Corrected) ---
+# This allows your specific Vercel URL and local testing
+origins = [
+    "http://localhost:5173",
+    "https://your-frontend-name.vercel.app", # REPLACE with your actual Vercel URL
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"], # React default port
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -38,9 +45,16 @@ app.add_middleware(
 def on_startup():
     create_db_and_tables()
 
-# --- CRUD Endpoints ---
+# --- 4. DATA MODEL ---
+class Student(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str
+    age: int
+    major: str
+    email: str
 
-# 1. Create Student
+# --- 5. CRUD ENDPOINTS ---
+
 @app.post("/students/", response_model=Student)
 def create_student(student: Student, session: Session = Depends(get_session)):
     session.add(student)
@@ -48,13 +62,11 @@ def create_student(student: Student, session: Session = Depends(get_session)):
     session.refresh(student)
     return student
 
-# 2. Read All Students
 @app.get("/students/", response_model=List[Student])
 def read_students(session: Session = Depends(get_session)):
     students = session.exec(select(Student)).all()
     return students
 
-# 3. Read Single Student
 @app.get("/students/{student_id}", response_model=Student)
 def read_student(student_id: int, session: Session = Depends(get_session)):
     student = session.get(Student, student_id)
@@ -62,24 +74,22 @@ def read_student(student_id: int, session: Session = Depends(get_session)):
         raise HTTPException(status_code=404, detail="Student not found")
     return student
 
-# 4. Update Student
 @app.put("/students/{student_id}", response_model=Student)
 def update_student(student_id: int, student_data: Student, session: Session = Depends(get_session)):
     student = session.get(Student, student_id)
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
     
-    student.name = student_data.name
-    student.age = student_data.age
-    student.major = student_data.major
-    student.email = student_data.email
+    # Update fields
+    for key, value in student_data.dict(exclude_unset=True).items():
+        if key != "id":
+            setattr(student, key, value)
     
     session.add(student)
     session.commit()
     session.refresh(student)
     return student
 
-# 5. Delete Student
 @app.delete("/students/{student_id}")
 def delete_student(student_id: int, session: Session = Depends(get_session)):
     student = session.get(Student, student_id)

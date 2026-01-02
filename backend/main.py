@@ -30,7 +30,8 @@ app = FastAPI()
 # This allows your specific Vercel URL and local testing
 origins = [
     "http://localhost:5173",
-    "https://student-management-system-git-main-vignanrajuris-projects.vercel.app/", # REPLACE with your actual Vercel URL
+    "https://student-management-system-git-main-vignanrajuris-projects.vercel.app", # Removed the trailing slash
+    "https://student-management-system-vignanrajuris-projects.vercel.app" # Add your main production URL too
 ]
 
 app.add_middleware(

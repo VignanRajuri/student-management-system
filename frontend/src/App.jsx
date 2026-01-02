@@ -8,7 +8,7 @@ import autoTable from 'jspdf-autotable';
 // This uses your Vercel Env Var if present, otherwise local
 // const BASE_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 //const API_URL = BASE_URL.endsWith('/') ? `${BASE_URL}students/` : `${BASE_URL}/students/`;
-const API_URL = "https://student-management-system-backend.onrender.com/students/";
+const API_URL = "https://student-management-system-5d8i.onrender.com/students/";
 function App() {
   const [students, setStudents] = useState([])
   const [form, setForm] = useState({ name: '', age: '', major: '', email: '' })
